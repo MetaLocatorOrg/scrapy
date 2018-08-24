@@ -164,11 +164,11 @@ class BaseProductsSpider(Spider):
     MAX_RETRIES = 3
 
     STOCK_STATUS = {
-                    'OTHER': -2,
-                    'OUT_OF_STOCK': -1,
-                    'CALL_FOR_AVAILABILITY': 0,
-                    'IN_STOCK': 1,
-                    }
+        'OTHER': -2,
+        'OUT_OF_STOCK': -1,
+        'CALL_FOR_AVAILABILITY': 0,
+        'IN_STOCK': 1,
+    }
 
     USER_AGENTS = {
         'default': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:35.0) ' \
@@ -440,7 +440,8 @@ class BaseProductsSpider(Spider):
                 yield Request(
                     url,
                     callback=self.parse_product,
-                    meta={'product': prod_item},
+                    meta={'product': prod_item,
+                          'req_url': url},
                 )
 
     def _get_next_products_page(self, response, prods_found):

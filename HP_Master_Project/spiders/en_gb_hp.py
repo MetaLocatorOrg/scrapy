@@ -39,7 +39,9 @@ class EnGbHpSpider(BaseProductsSpider):
 
     def parse_product(self, response):
         product = response.meta['product']
-
+        if response.meta['req_url'] != response.url:
+            if response.meta['req_url'].replace('http', 'https', 1) != response.url:
+                return
         # Parse name
         name = self._parse_name(response)
         product['name'] = name
