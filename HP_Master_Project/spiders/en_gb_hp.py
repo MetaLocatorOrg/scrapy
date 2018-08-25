@@ -61,8 +61,8 @@ class EnGbHpSpider(BaseProductsSpider):
         price = self._parse_price(response)
         product['price'] = price
         product['saleprice'] = price
-        retailer_key = self._parse_retailer_key(response)
-        product['retailer_key'] = retailer_key
+        # retailer_key = self._parse_retailer_key(response)
+        product['retailer_key'] = sku
         in_store = self._parse_instore(response)
         product['instore'] = in_store
         product['gallery'] = self._parse_gallery(response)
@@ -119,7 +119,7 @@ class EnGbHpSpider(BaseProductsSpider):
     def _parse_model(self, response):
         model = response.xpath('//p[contains(@class, "prod-nr")]/text()').extract()
         if model:
-            return self.clear_text(model[0])
+            return self.clear_text(model[0].replace('Part Number: ', ''))
 
     @staticmethod
     def _parse_gallery(response):
