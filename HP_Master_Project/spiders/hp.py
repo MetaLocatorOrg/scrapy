@@ -1,16 +1,15 @@
 # - * - coding: utf-8 -*-#
 from __future__ import absolute_import, division, unicode_literals
 
-from scrapy.log import WARNING
-from scrapy import Request
-import re
 import json
 import math
+import re
 
-from HP_Master_Project.utils import is_empty
+from scrapy import Request
+
 from HP_Master_Project.items import ProductItem
 from HP_Master_Project.spiders import BaseProductsSpider
-from HP_Master_Project.extract_brand import extract_brand_from_first_words
+from HP_Master_Project.utils import is_empty
 
 
 class HpSpider(BaseProductsSpider):
@@ -146,7 +145,7 @@ class HpSpider(BaseProductsSpider):
             )
         response.meta['product'] = product
         stock_url = self._get_stock_request(response)
-        return Request(stock_url, callback=self._parse_stock_status, meta=response.meta)
+        return Request(stock_url, callback=self._parse_stock_status, dont_filter=True, meta=response.meta)
 
     @staticmethod
     def _parse_name(response):
@@ -169,17 +168,30 @@ class HpSpider(BaseProductsSpider):
     def _get_stock_request(response):
         html = response.text
         url = 'https://store.hp.com/us/en/HPServices?langId={}&storeId={}&catalogId={}&action=pis&catentryId={}&modelId='
-        try:
-            catentry_id = re.findall('data-a2c=\'{"itemId":"(\d+?)",', html)[0]
-            store_id = re.findall('var storeId = \'(\d+?)\';', html)[0]
-            lang_id = re.findall('var langId = \'(.+?)\';', html)[0]
-            catalog_id = re.findall('var catalogId = \'(\d+?)\';', html)[0]
-            return url.format(lang_id, store_id, catalog_id, catentry_id)
-        except:
-            return url
+        catentry_id = re.findall('data-a2c=\'{"itemId":"(\d+?)",', html) or re.findall(
+            '"itemId":"(\d+)', html)
+        if catentry_id:
+            catentry_id = catentry_id[0]
+        else:
+            print "Cannot find catentry_id"
+            return
+        store_id = (re.findall('var storeId = \'(\d+?)\';', html) or re.findall('storeId=(\d+)', html))
+        if store_id:
+            store_id = store_id[0]
+        else:
+            print "Cannot find store_id"
+            return
+        lang_id = "-1"
+        catalog_id = re.findall('var catalogId = \'(\d+?)\';', html) or re.findall('catalogId=(\d+)', html)
+        if catalog_id:
+            catalog_id = catalog_id[0]
+        else:
+            print "cannt find catalog_id"
+            return
+        return url.format(lang_id, store_id, catalog_id, catentry_id)
 
     def _parse_stock_status(self, response):
-        stock_value = self.STOCK_STATUS['CALL_FOR_AVAILABILITY']
+        # stock_value = self.STOCK_STATUS['CALL_FOR_AVAILABILITY']
         try:
             data = json.loads(response.text)
             if data['priceData'][0]['price'] == '0.00':
