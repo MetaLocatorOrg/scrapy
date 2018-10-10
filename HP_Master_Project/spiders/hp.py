@@ -1,16 +1,16 @@
 # - * - coding: utf-8 -*-#
 from __future__ import absolute_import, division, unicode_literals
 
-from scrapy.log import WARNING
-from scrapy import Request
-import re
 import json
 import math
+import re
 
-from HP_Master_Project.utils import is_empty
+from scrapy import Request
+from scrapy.log import INFO
+
 from HP_Master_Project.items import ProductItem
 from HP_Master_Project.spiders import BaseProductsSpider
-from HP_Master_Project.extract_brand import extract_brand_from_first_words
+from HP_Master_Project.utils import is_empty
 
 
 class HpSpider(BaseProductsSpider):
@@ -146,40 +146,47 @@ class HpSpider(BaseProductsSpider):
             )
         response.meta['product'] = product
         stock_url = self._get_stock_request(response)
-        return Request(stock_url, callback=self._parse_stock_status, meta=response.meta)
+        return Request(stock_url, callback=self._parse_stock_status, dont_filter=True, meta=response.meta)
 
     @staticmethod
     def _parse_name(response):
-        title = response.xpath('//span[@itemprop="name"]/text()').extract()
-        if title:
-            return title[0]
-
-    @staticmethod
-    def _parse_image(response):
-        img = response.xpath('//img[@itemprop="image"]/@src').extract()
-        if img:
-            return img[0]
+        title = response.xpath('//span[@itemprop="name"]/text()').extract_first() or response.xpath(
+            '//div[@class="product-detail"]/h1/text()').extract_first()
+        return title
 
     def _parse_sku(self, response):
-        sku = response.xpath('//span[@itemprop="sku"]/text()').extract()
-        if sku:
-            return self.clear_text(sku[0])
+        sku = response.xpath('//span[@itemprop="sku"]/text()').extract_first() or response.xpath(
+            '//span[@class="pdp-sku"]/text()').extract_first()
+        return self.clear_text(sku)
 
-    @staticmethod
-    def _get_stock_request(response):
+    def _get_stock_request(self, response):
         html = response.text
         url = 'https://store.hp.com/us/en/HPServices?langId={}&storeId={}&catalogId={}&action=pis&catentryId={}&modelId='
-        try:
-            catentry_id = re.findall('data-a2c=\'{"itemId":"(\d+?)",', html)[0]
-            store_id = re.findall('var storeId = \'(\d+?)\';', html)[0]
-            lang_id = re.findall('var langId = \'(.+?)\';', html)[0]
-            catalog_id = re.findall('var catalogId = \'(\d+?)\';', html)[0]
-            return url.format(lang_id, store_id, catalog_id, catentry_id)
-        except:
-            return url
+        catentry_id = re.findall('data-a2c=\'{"itemId":"(\d+?)",', html) or re.findall(
+            '"itemId":"(\d+)', html)
+        if catentry_id:
+            catentry_id = catentry_id[0]
+        else:
+            self.log("Cannot find catentry_id for %s" % response.url, INFO)
+            return
+        store_id = (re.findall('var storeId = \'(\d+?)\';', html) or re.findall('storeId=(\d+)', html))
+        if store_id:
+            store_id = store_id[0]
+        else:
+            self.log("Cannot find store_id for %s" % response.url, INFO)
+            return
+        lang_id = "-1"
+        catalog_id = re.findall('var catalogId = \'(\d+?)\';', html) or re.findall('catalogId=(\d+)', html)
+        if catalog_id:
+            catalog_id = catalog_id[0]
+        else:
+            self.log("Cannot find catalog_id for %s" % response.url, INFO)
+            return
+        return url.format(lang_id, store_id, catalog_id, catentry_id)
 
     def _parse_stock_status(self, response):
-        stock_value = self.STOCK_STATUS['CALL_FOR_AVAILABILITY']
+        # stock_value = self.STOCK_STATUS['CALL_FOR_AVAILABILITY']
+        product = response.meta['product']
         try:
             data = json.loads(response.text)
             if data['priceData'][0]['price'] == '0.00':
@@ -189,9 +196,12 @@ class HpSpider(BaseProductsSpider):
                     stock_value = self.STOCK_STATUS['OUT_OF_STOCK']
                 else:
                     stock_value = self.STOCK_STATUS['IN_STOCK']
+            if not product.get('price', None):
+                product['price'] = data['priceData'][0]['Price']
+                product['saleprice'] = data['priceData'][0]['lPrice']
         except:
             stock_value = self.STOCK_STATUS['CALL_FOR_AVAILABILITY']
-        product = response.meta['product']
+
         product['productstockstatus'] = stock_value
         yield product
 
@@ -209,9 +219,16 @@ class HpSpider(BaseProductsSpider):
             return self.clear_text(model[0])
 
     @staticmethod
+    def _parse_image(response):
+        img = response.xpath('//img[@itemprop="image"]/@src').extract()
+        if img:
+            return img[0]
+
+    @staticmethod
     def _parse_gallery(response):
-        gallery = response.xpath('//ul[@id="featured_image_pager"]/li/a/img/@src').extract()
-        return gallery
+        gallery = response.xpath('//ul[@id="featured_image_pager"]/li/a/img/@src').extract() or response.xpath(
+            '//div[contains(@class, "pdp-image-thumbnail")]/img/@src').extract()
+        return map(response.urljoin, gallery)
 
     @staticmethod
     def _parse_price(response):
