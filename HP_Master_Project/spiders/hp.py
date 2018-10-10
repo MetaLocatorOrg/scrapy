@@ -6,7 +6,7 @@ import math
 import re
 
 from scrapy import Request
-from scrapy.log import INFO
+from scrapy.log import INFO, ERROR
 
 from HP_Master_Project.items import ProductItem
 from HP_Master_Project.spiders import BaseProductsSpider
@@ -197,9 +197,10 @@ class HpSpider(BaseProductsSpider):
                 else:
                     stock_value = self.STOCK_STATUS['IN_STOCK']
             if not product.get('price', None):
-                product['price'] = data['priceData'][0]['Price']
+                product['price'] = data['priceData'][0]['price']
                 product['saleprice'] = data['priceData'][0]['lPrice']
-        except:
+        except Exception as e:
+            self.log(e.message, ERROR)
             stock_value = self.STOCK_STATUS['CALL_FOR_AVAILABILITY']
 
         product['productstockstatus'] = stock_value
@@ -220,9 +221,9 @@ class HpSpider(BaseProductsSpider):
 
     @staticmethod
     def _parse_image(response):
-        img = response.xpath('//img[@itemprop="image"]/@src').extract()
-        if img:
-            return img[0]
+        img = response.xpath('//img[@itemprop="image"]/@src').extract_first() or response.xpath(
+            '//div[contains(@class, "featured-image-list")]/div/img/@src').extract_first()
+        return response.urljoin(img)
 
     @staticmethod
     def _parse_gallery(response):
