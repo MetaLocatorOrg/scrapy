@@ -45,8 +45,15 @@ class AgrosSpider(BaseProductsSpider):
 
     def parse_search(self, response):
         page_title = response.css('div.search-results-count').extract()
+        product_name = self._parse_name(response)
+
+        # search page
         if page_title or self.retailer_id:
             return self.parse(response)
+
+        # product page
+        if product_name:
+            return self._parse_single_product(response)
 
     def _parse_single_product(self, response):
         return self.parse_product(response)
