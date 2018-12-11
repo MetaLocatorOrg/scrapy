@@ -22,6 +22,8 @@ class StaplesSpider(BaseProductsSpider):
     allowed_domains = ['staples.com', "www.staples.com"]
 
     SEARCH_URL = "http://www.staples.com/{search_term}+item/directory_{search_term}%2520item?sby=0&pn=0&akamai-feo=off"
+    SEARCH_URL_PRODUCT = "http://www.staples.com/{search_term}/directory_{search_term}"
+    PRODUCT_URL = 'https://www.staples.com/product_{sku}&akamai-feo=off'
 
     PAGINATE_URL = "http://www.staples.com/{search_term}/directory_{search_term}?sby=0&pn={nao}"
 
@@ -61,6 +63,10 @@ class StaplesSpider(BaseProductsSpider):
             yield request
 
     def parse_search(self, response):
+        null_text = ' '.join(response.xpath('//div[@class="nullPage__nullPageHeading"]//text()').extract()).strip()
+        if null_text and 'didn\'t match to any product' in null_text:
+            search_term = response.meta.get('search_term')
+            return Request(self.SEARCH_URL_PRODUCT.format(search_term=search_term), callback=self.parse_product_url)
         redirect = response.xpath('//div[@id="redirect"]')
         if redirect:
             category_url = re.findall("\.replace\('(.*?)'\)", response.body)
@@ -72,6 +78,14 @@ class StaplesSpider(BaseProductsSpider):
                 return
         else:
             return self.parse(response)
+
+    def parse_product_url(self, response):
+        try:
+            data = json.loads(re.findall('window.__PRELOADED_STATE__\s?=\s?({.*})\s?;', response.text)[0])
+            redirect_url = urlparse.urljoin(response.url, data.get('searchState', {}).get('redirectUrl'))
+            yield Request(redirect_url, callback=self._parse_single_product)
+        except:
+            self.log('Error extracting product redirect url {}'.format(traceback.format_exc()), WARNING)
 
     def parse_category_links(self, response):
         links = response.xpath('//div[@id="z_wrapper"]//ul[@class="z_main_nav"]'
@@ -152,6 +166,7 @@ class StaplesSpider(BaseProductsSpider):
         product['instore'] = in_store
         
         # Parse stock status
+        response.meta['product'] = product
         oos = self._parse_product_stock_status(response)
         cond_set_value(product, 'productstockstatus', oos)
 
@@ -347,50 +362,29 @@ class StaplesSpider(BaseProductsSpider):
         if self.retailer_id:
             data = json.loads(response.body)
             return len(data)
-
         try:
-            totals = response.xpath('//input[contains(@id, "allProductsTabCount")]/@value').extract()
-            totals = totals[0] if totals else 0
-
-            if not int(totals):
-                totals = response.xpath('//span[@class="count"]/text()')
-                totals = totals[0] if totals else 0
-                totals = totals.re('(\d+)')[0]
-            if not int(totals):
-                totals = response.xpath('//span[@class="results-number"]/text()')
-                totals = totals.re('(\d+)')[0] if totals else 0
-            if totals:
-                totals = totals.replace(',', '').replace('.', '').strip()
-                if totals.isdigit():
-                    if not self.TOTAL_MATCHES:
-                        self.TOTAL_MATCHES = int(totals)
-                    return int(totals)
-        except:
-            self.log("Found no total matches {}".format(traceback.format_exc()))
+            total_results = response.xpath('//span[@class="results-number"]/text()')
+            if not total_results:
+                total_results = response.xpath("//span[@class='searchTools__searchQueryItemCount']/text()")
+            totals = int(total_results.re('\d+')[0])
+            if not self.TOTAL_MATCHES:
+                self.TOTAL_MATCHES = totals
+            return totals
+        except IndexError:
+            self.log('Can not parse total matches from page: {}'.format(traceback.format_exc()))
             return 0
 
     def _scrape_product_links(self, response):
-        link_data = []
-        links = response.xpath('//a[contains(@property, "url")]/@href').extract()
-
-        if not links:
-            links = response.xpath('.//div[@class="product-info"]'
-                                   '/a[contains(@class, "product-title")]/@href').extract()
-        if not links:
-            links = response.xpath('//a[@class="product-title scTrack pfm"]/@href').extract()
-        link_data.extend(links)
-
-        if self.retailer_id:
-            data = json.loads(response.body)
-            link_list = data
-            for link in link_list:
-                link = link['product_link']
-                link_data.append(link)
-
-        link_data = [urlparse.urljoin(response.url, x) for x in link_data]
-
-        for link in link_data:
-            yield link, ProductItem()
+        if response.xpath('//div[@class="stp--new-product-tile-container desktop"]'):
+            sku_list = response.xpath(
+                '//div[@class="stp--new-product-tile-container desktop"]/div[@class="tile-container"]/@id'
+            ).extract()
+            for sku in sku_list:
+                yield self.PRODUCT_URL.format(sku=sku), ProductItem()
+        else:
+            product_links = response.xpath('//a[@class="standard-type__product_link"]/@href').extract()
+            for product_link in product_links:
+                yield product_link, ProductItem()
 
     def _scrape_next_results_page_link(self, response):
         if self.retailer_id:
