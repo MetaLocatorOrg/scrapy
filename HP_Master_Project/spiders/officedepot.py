@@ -225,7 +225,7 @@ class OfficedepotProductsSpider(BaseProductsSpider):
 
     @staticmethod
     def parse_price(response):
-        price = response.xpath('//meta[contains(@itemprop, "price")]/@content').extract()
+        price = response.xpath('//meta[@itemprop="price"]/@content').extract()
         if price:
             return float(price[0].replace(",", "").replace("$", ""))
 
