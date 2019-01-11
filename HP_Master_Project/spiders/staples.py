@@ -375,16 +375,28 @@ class StaplesSpider(BaseProductsSpider):
             return 0
 
     def _scrape_product_links(self, response):
-        if response.xpath('//div[@class="stp--new-product-tile-container desktop"]'):
-            sku_list = response.xpath(
-                '//div[@class="stp--new-product-tile-container desktop"]/div[@class="tile-container"]/@id'
-            ).extract()
-            for sku in sku_list:
-                yield self.PRODUCT_URL.format(sku=sku), ProductItem()
+        link_data = []
+        if self.retailer_id:
+            data = json.loads(response.body)
+            link_list = data
+            for link in link_list:
+                link = link['product_link']
+                link_data.append(link)
+
+            link_data = [urlparse.urljoin(response.url, x) for x in link_data]
+            for link in link_data:
+                yield link, ProductItem()
         else:
-            product_links = response.xpath('//a[@class="standard-type__product_link"]/@href').extract()
-            for product_link in product_links:
-                yield product_link, ProductItem()
+            if response.xpath('//div[@class="stp--new-product-tile-container desktop"]'):
+                sku_list = response.xpath(
+                    '//div[@class="stp--new-product-tile-container desktop"]/div[@class="tile-container"]/@id'
+                ).extract()
+                for sku in sku_list:
+                    yield self.PRODUCT_URL.format(sku=sku), ProductItem()
+            else:
+                product_links = response.xpath('//a[@class="standard-type__product_link"]/@href').extract()
+                for product_link in product_links:
+                    yield product_link, ProductItem()
 
     def _scrape_next_results_page_link(self, response):
         if self.retailer_id:
