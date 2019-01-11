@@ -193,9 +193,9 @@ class OfficedepotProductsSpider(BaseProductsSpider):
 
     @staticmethod
     def parse_name(response):
-        name = response.xpath(
-            '//h1[contains(@itemprop, "name")]/text()').extract()
-        return name
+        title = response.xpath('//div[@itemtype="http://schema.org/Product"]//h1[contains(@itemprop, "name")]//text()').extract()
+        if title:
+            return title[0]
 
     def parse_data(self, response):
         data = re.findall(r'var MasterTmsUdo \'(.+)\'; ', response.body_as_unicode())
