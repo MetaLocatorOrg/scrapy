@@ -3,17 +3,16 @@ from __future__ import absolute_import, division, unicode_literals
 
 import json
 import re
-import time
 import traceback
 import urlparse
+from urllib import urlencode
 
 import requests
 from scrapy import Request
 from scrapy.log import WARNING
 
 from HP_Master_Project.items import ProductItem
-from HP_Master_Project.spiders import BaseProductsSpider, cond_set, \
-    cond_set_value
+from HP_Master_Project.spiders import BaseProductsSpider, cond_set_value
 from HP_Master_Project.utils import clean_text
 
 
@@ -23,7 +22,7 @@ class StaplesSpider(BaseProductsSpider):
 
     SEARCH_URL = "http://www.staples.com/{search_term}+item/directory_{search_term}%2520item?sby=0&pn=0&akamai-feo=off"
     SEARCH_URL_PRODUCT = "http://www.staples.com/{search_term}/directory_{search_term}"
-    PRODUCT_URL = 'https://www.staples.com/product_{sku}&akamai-feo=off'
+    PRODUCT_URL = 'https://www.staples.com/product_{sku}?akamai-feo=off'
 
     PAGINATE_URL = "http://www.staples.com/{search_term}/directory_{search_term}?sby=0&pn={nao}"
 
@@ -52,8 +51,9 @@ class StaplesSpider(BaseProductsSpider):
         self.is_category = False
         super(StaplesSpider, self).__init__(
             site_name=self.allowed_domains[0], *args, **kwargs)
-        self.user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " \
-                          "Chrome/60.0.3112.105 Safari/537.36 Vivaldi/1.92.917.43"
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/" \
+                          "537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+
         self.retailer_check = False
 
     def start_requests(self):
@@ -164,7 +164,7 @@ class StaplesSpider(BaseProductsSpider):
         # Parse in_store
         in_store = self._parse_instore(response)
         product['instore'] = in_store
-        
+
         # Parse stock status
         response.meta['product'] = product
         oos = self._parse_product_stock_status(response)
@@ -188,22 +188,23 @@ class StaplesSpider(BaseProductsSpider):
         price = self._parse_price(response)
         product['price'] = price
         return product
-    
+
     def _parse_product_stock_status(self, response):
         product = response.meta['product']
         stock_value = self.STOCK_STATUS['CALL_FOR_AVAILABILITY']
 
         try:
-            
-            stock_message = response.xpath('//div[contains(@class,"price")]//div[contains(@class,"out-of-stock")]/text()').extract()
+
+            stock_message = response.xpath(
+                '//div[contains(@class,"price")]//div[contains(@class,"out-of-stock")]/text()').extract()
             if stock_message:
                 stock_message = stock_message[0]
                 if 'out of stock' in stock_message.lower():
                     stock_value = self.STOCK_STATUS['OUT_OF_STOCK']
-                    
+
                 product['productstockstatus'] = stock_value
-                return product                
-                
+                return product
+
             stock_message = response.xpath('//meta[@itemprop="availability"]/@content').extract()
             if stock_message:
                 stock_message = stock_message[0]
@@ -374,6 +375,14 @@ class StaplesSpider(BaseProductsSpider):
             self.log('Can not parse total matches from page: {}'.format(traceback.format_exc()))
             return 0
 
+    def _add_akamai(self, url):
+        params = {'akamai-feo': 'off'}
+        url_parts = list(urlparse.urlparse(url))
+        query = dict(urlparse.parse_qsl(url_parts[4]))
+        query.update(params)
+        url_parts[4] = urlencode(query)
+        return urlparse.urlunparse(url_parts)
+
     def _scrape_product_links(self, response):
         link_data = []
         if self.retailer_id:
@@ -381,9 +390,9 @@ class StaplesSpider(BaseProductsSpider):
             link_list = data
             for link in link_list:
                 link = link['product_link']
+                link = urlparse.urljoin(response.url, link)
+                link = self._add_akamai(link)
                 link_data.append(link)
-
-            link_data = [urlparse.urljoin(response.url, x) for x in link_data]
             for link in link_data:
                 yield link, ProductItem()
         else:
@@ -396,7 +405,7 @@ class StaplesSpider(BaseProductsSpider):
             else:
                 product_links = response.xpath('//a[@class="standard-type__product_link"]/@href').extract()
                 for product_link in product_links:
-                    yield product_link, ProductItem()
+                    yield self._add_akamai(product_link), ProductItem()
 
     def _scrape_next_results_page_link(self, response):
         if self.retailer_id:
