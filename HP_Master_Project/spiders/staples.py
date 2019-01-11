@@ -223,13 +223,13 @@ class StaplesSpider(BaseProductsSpider):
 
     @staticmethod
     def _parse_name(response):
-        title = response.xpath('//span[contains(@itemprop, "name")]//text()').extract()
+        title = response.xpath('//div[@itemtype="http://schema.org/Product"]/span[contains(@itemprop, "name")]//text()').extract()
         if title:
             return title[0]
 
     @staticmethod
     def _parse_image(response):
-        img = response.xpath('//img[contains(@class, "stp--sku-image")]/@src').extract()
+        img = response.xpath('//img[contains(@id, "sku_image")]/@src').extract()
         if img:
             return img[0]
 
