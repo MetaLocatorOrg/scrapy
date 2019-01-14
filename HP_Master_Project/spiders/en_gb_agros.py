@@ -95,7 +95,7 @@ class AgrosSpider(BaseProductsSpider):
         product['currencycode'] = self._parse_currency_code(response)
 
         # Set locale
-        product['locale'] = 'en-US'
+        product['locale'] = 'en-GB'
 
         # Parse price
         price = self._parse_price(response)
