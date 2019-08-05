@@ -193,7 +193,7 @@ class OfficedepotProductsSpider(BaseProductsSpider):
 
     @staticmethod
     def parse_name(response):
-        title = response.xpath('//div[@itemtype="http://schema.org/Product"]//h1[contains(@itemprop, "name")]//text()').extract()
+        title = response.xpath('normalize-space(//div[@itemtype="http://schema.org/Product"]//h1[contains(@itemprop, "name")]//text())').extract()
         if title:
             return title[0]
 
