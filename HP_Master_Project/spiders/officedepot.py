@@ -196,11 +196,7 @@ class OfficedepotProductsSpider(BaseProductsSpider):
         title = response.xpath('normalize-space(//div[@itemtype="http://schema.org/Product"]//h1[contains(@itemprop, "name")]//text())').extract()
         
         #out of stock products have a different selector
-        if isinstance(title, list):
-            title = response.xpath('normalize-space(//div[@id="skuTop"]//h1[contains(@class, "fn")]//text())').extract()
-            
-        #out of stock products have a different selector
-        if not title:
+        if title[0] = "":
             title = response.xpath('normalize-space(//div[@id="skuTop"]//h1[contains(@class, "fn")]//text())').extract()
   
         if title:
