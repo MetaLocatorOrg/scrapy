@@ -238,7 +238,7 @@ class HpSpider(BaseProductsSpider):
             return float(price[0].replace("$", "").replace(",", ""))
 
     def _parse_retailer_key(self, response):
-        retailer_key = response.xpath('//div[@class="prodSku"]/span[@class="prodNum"]/text()').extract()
+        retailer_key = response.xpath('//div[contains(@class,"prodSku")]/span[@class="prodNum"]/text()').extract()
         if retailer_key:
             return self.clear_text(retailer_key[0])
 
