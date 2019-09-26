@@ -150,7 +150,7 @@ class HpSpider(BaseProductsSpider):
 
     @staticmethod
     def _parse_name(response):
-        title = response.xpath('//span[@itemprop="name"]/text()').extract_first() or response.xpath(
+        title = response.xpath('//h1//span[@itemprop="name"]/text()').extract_first() or response.xpath(
             '//div[@class="product-detail"]/h1/text()').extract_first()
         return title
 
