@@ -239,8 +239,13 @@ class HpSpider(BaseProductsSpider):
 
     def _parse_retailer_key(self, response):
         retailer_key = response.xpath('//div[contains(@class,"prodSku")]/span[@class="prodNum"]/text()').extract()
+        
+        if not retailer_key:
+            retailer_key = response.xpath('//span[@class="pdp-sku"]/text()').extract()
+            
         if retailer_key:
             return self.clear_text(retailer_key[0])
+        
 
     def _parse_instore(self, response):
         if self._parse_price(response):
