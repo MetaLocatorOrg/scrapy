@@ -22,7 +22,7 @@ class StaplesSpider(BaseProductsSpider):
 
     SEARCH_URL = "http://www.staples.com/{search_term}+item/directory_{search_term}%2520item?sby=0&pn=0&akamai-feo=off"
     SEARCH_URL_PRODUCT = "http://www.staples.com/{search_term}/directory_{search_term}"
-    PRODUCT_URL = 'https://www.staples.com/product_{sku}?akamai-feo=off'
+    PRODUCT_URL = 'https://www.staples.com/product_{sku}?akamai-feo=off&gclid='
 
     PAGINATE_URL = "http://www.staples.com/{search_term}/directory_{search_term}?sby=0&pn={nao}"
 
