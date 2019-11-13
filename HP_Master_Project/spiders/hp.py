@@ -51,7 +51,7 @@ class HpSpider(BaseProductsSpider):
             redirect_urls = response.meta['redirect_urls']
             if response.url.startswith('https:'):
                 for redirect_url in redirect_urls:
-                    if redirect_url == response.url.replace('https:', 'http:', 1):
+                    if redirect_url == response.url.replace('https:', 'http:', 1).replace('/us/en/', '/app/', 1):
                         https_redirect = True
                         break
             if not https_redirect:
