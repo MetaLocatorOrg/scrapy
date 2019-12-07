@@ -25,9 +25,6 @@ class BhphotovideoSpider(BaseProductsSpider):
               '&apikey=f5e4337a05acceae50dc116d719a2875&username=fatica%2Bscrapingapi@gmail.com' \
               '&password=8y3$u2ehu2e..!!$$&retailer_id={retailer_id}'
 
-    CATEGORY_URL = "http://store.hp.com/webapp/wcs/stores/servlet/HPBreadCrumbView?productId={product_id}" \
-                   "&langId=-1&storeId=10151&catalogId=10051&urlLangId=-1&modelId={model_id}"
-
     TOTAL_MATCHES = None
 
     RESULT_PER_PAGE = None
@@ -111,6 +108,7 @@ class BhphotovideoSpider(BaseProductsSpider):
         name = response.css('h1[data-selenium="productTitle"]::text').extract()
         if name:
             return name[0]
+        return ''
 
     def _parse_brand(self, response):
         data = response.css('section.app-layout>div>script[type="application/ld+json"]::text').extract_first()
@@ -298,5 +296,9 @@ class BhphotovideoSpider(BaseProductsSpider):
         self.current_page += 1
 
         if self.current_page < math.ceil(self.TOTAL_MATCHES / 24.0):
+            next_page = response.css('a[data-selenium="pn-next"]::attr(href)').extract()
+            if next_page:
+                return response.urljoin(next_page)
+
             next_page = self.PAGINATE_URL.format(search_term=search_term, page=self.current_page)
             return next_page
