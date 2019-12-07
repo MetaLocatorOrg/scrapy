@@ -31,7 +31,7 @@ class BhphotovideoSpider(BaseProductsSpider):
 
     def __init__(self, *args, **kwargs):
         super(BhphotovideoSpider, self).__init__(site_name=self.allowed_domains[0], *args, **kwargs)
-        self.current_page = 0
+        self.current_page = 1
         self.user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " \
                           "Chrome/60.0.3112.90 Safari/537.36"
 
@@ -39,7 +39,7 @@ class BhphotovideoSpider(BaseProductsSpider):
         return self.parse_product(response)
 
     def parse_product(self, response):
-        product = ProductItem()
+        product = response.meta.get('product', ProductItem())
 
         # Parse name
         name = self._parse_name(response)
