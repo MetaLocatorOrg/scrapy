@@ -298,7 +298,7 @@ class BhphotovideoSpider(BaseProductsSpider):
         if self.current_page < math.ceil(self.TOTAL_MATCHES / 24.0):
             next_page = response.css('a[data-selenium="pn-next"]::attr(href)').extract()
             if next_page:
-                return response.urljoin(next_page)
+                return response.urljoin(next_page[0])
 
             next_page = self.PAGINATE_URL.format(search_term=search_term, page=self.current_page)
             return next_page
