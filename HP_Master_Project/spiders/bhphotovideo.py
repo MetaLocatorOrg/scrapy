@@ -128,39 +128,16 @@ class BhphotovideoSpider(BaseProductsSpider):
         if upc:
             return upc[0].replace('UPC:', '').strip()
 
-    def _get_stock_request(self, response):
-        html = response.text
-        url = 'https://store.hp.com/us/en/HPServices?langId={}&storeId={}&catalogId={}&action=pis&catentryId={}&modelId='
-        catentry_id = re.findall('data-a2c=\'{"itemId":"(\d+?)",', html) or re.findall(
-            '"itemId":"(\d+)', html)
-        if catentry_id:
-            catentry_id = catentry_id[0]
-        else:
-            self.log("Cannot find catentry_id for %s" % response.url, INFO)
-            return
-        store_id = (re.findall('var storeId = \'(\d+?)\';', html) or re.findall('storeId=(\d+)', html))
-        if store_id:
-            store_id = store_id[0]
-        else:
-            self.log("Cannot find store_id for %s" % response.url, INFO)
-            return
-        lang_id = "-1"
-        catalog_id = re.findall('var catalogId = \'(\d+?)\';', html) or re.findall('catalogId=(\d+)', html)
-        if catalog_id:
-            catalog_id = catalog_id[0]
-        else:
-            self.log("Cannot find catalog_id for %s" % response.url, INFO)
-            return
-        return url.format(lang_id, store_id, catalog_id, catentry_id)
-
     def _parse_stock_status(self, response):
         stock_text = response.css('span[data-selenium="stockStatus"]::text').extract()
 
         # default stock status
-        stock_value = self.STOCK_STATUS['OUT_OF_STOCK']
+        stock_value = self.STOCK_STATUS['CALL_FOR_AVAILABILITY']
         if stock_text:
             if stock_text[0].lower() == 'in stock':
                 stock_value = self.STOCK_STATUS['IN_STOCK']
+            elif stock_text[0].lower() == 'out of stock':
+                stock_value = self.STOCK_STATUS['OUT_OF_STOCK']
 
         return stock_value
 
